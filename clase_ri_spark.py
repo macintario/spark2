@@ -43,9 +43,9 @@ def crearVector(documento,diccionario):
     for palabra in diccionario:
         contador = 0
         for palabradocs in documento:
-            if lematizador(lema_d,palabradocs) == palabra:
+            if lematizador(lema_d, palabradocs) == palabra:
                 contador = contador + 1
-            vector.append(contador)
+        vector.append(contador)
     return vector
 
 
@@ -58,8 +58,14 @@ def crearVectorConsulta(consulta,diccionario):
             if lematizador(lema_d,palabradocs) == palabra:
                 contador = contador + 1
             vector.append(contador)
-
     return vector
+
+
+def crearVectorConsultaFlatmap(w,lsConsulta):
+    if w in lsConsulta:
+        return 1
+    else:
+        return 0
 
 def cosine_similarity(v1, v2):
     "compute cosine similarity of v1 to v2: (v1 dot v2)/{||v1||*||v2||)"
@@ -71,17 +77,11 @@ def cosine_similarity(v1, v2):
         sumyy += y * y
         sumxy += x * y
     prod = sumxx * sumyy
+
     if prod >0:
         return sumxy / math.sqrt(prod)
     else:
         return 0
-
-def crearVectorConsultaFlatmap(w,lsConsulta):
-    if w in lsConsulta:
-        return 1
-    else:
-        return 0
-
 
 conf = SparkConf()
 sc = SparkContext(conf=conf)
@@ -109,22 +109,21 @@ listaStopWords = rrdStopWordsMinusculas.collect()
 ##### Quitar Stop Words ###########################
 
 rddWordsInLista = rddDocsTokenized.flatMap(lambda (word,idx): word)
-
+#print(rddWordsInLista.collect())
 ##### Quitar Stop Words ###########################
 rddDocumentosSinSW = rddWordsInLista.filter(lambda word: word not in listaStopWords)
-
+#print(rddDocumentosSinSW.collect())
 #lematizador(lema_d,palabra)
 lema_d = CargarDiccionarioLemas()
 rddWordsLematized = rddDocumentosSinSW.map(lambda word:lematizador(lema_d,word))
-
+#print(rddWordsLematized.collect())
 diccionarioDeTerminos = rddWordsLematized.distinct()
 terminos = list(diccionarioDeTerminos.collect())
 
-
-
+#rrdMatrizTerminoDoc = rddDocsTokenized.map(lambda (documento,idx): (crearVector(documento,terminos), idx))
 rrdMatrizTerminoDoc = rddDocsTokenized.map(lambda (documento,idx): (crearVector(documento,terminos), idx))
-#x = rrdMatrizTerminoDoc.take(3)
-
+#x = rrdMatrizTerminoDoc.collect()
+#print(x)
 #rddConsulta = sc.parallelize(["suecia europa mundo spark"])
 
 
@@ -134,24 +133,37 @@ rrdMatrizTerminoDoc = rddDocsTokenized.map(lambda (documento,idx): (crearVector(
 #laConsulta = list(rddVectorConslta.collect())
 
 #lsConsulta = ["hola", "mundo", "spark", "suecia","cerca","amar"]
-lsConsulta = ["bueno", "extraer", "siempre", "trabajo","faz","vida"]
+lsConsulta = ["injusto", "arquitecto", "esperanza"]
+
+print("######## BUSCANDO .....")
+print(lsConsulta)
+
+rddConsulta = diccionarioDeTerminos.map(lambda w: crearVectorConsultaFlatmap(w, lsConsulta) )
+#rddConsulta = diccionarioDeTerminos.map(lambda w: crearVectorConsulta(w, lsConsulta) )
 
 
-#print(terminos)
-rddConsulta = diccionarioDeTerminos.map(lambda w: crearVectorConsultaFlatmap(w,lsConsulta) )
+#print(diccionarioDeTerminos.collect())
+#print(rddConsulta.collect())
 
 lsvConsulta = rddConsulta.collect()
 
 rddDistancias = rrdMatrizTerminoDoc.map(lambda (vectorTD, idx): (cosine_similarity(vectorTD,lsvConsulta),idx))
 
+#print(rrdMatrizTerminoDoc.collect())
+
+#print(rddDistancias.collect())
+
 top = rddDistancias.takeOrdered(3,key = lambda x: -x[0])
 
-listaNoticias = list()
-for distancia,noticia in top:
-    listaNoticias.append(noticia)
+listaTopNoticias = list()
+for distancia, noticia in top:
+    if distancia > 0:
+        listaTopNoticias.append(noticia)
 
-rddTextoNoticias = rddIdxDoc.filter(lambda (txtNoticia,idx): idx in listaNoticias )
+rddTextoNoticias = rddIdxDoc.filter(lambda (txtNoticia,idx): idx in  listaTopNoticias )
 textoNoticiasTop = rddTextoNoticias.collect()
+
+print("###############ENCONTRADOS")
 
 for i in textoNoticiasTop:
     print (i[0])

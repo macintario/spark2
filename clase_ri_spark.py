@@ -8,7 +8,6 @@ sys.path.append("/git/spark-2.3.2-bin-hadoop2.7/python")
 sys.path.append("/git/spark-2.3.2-bin-hadoop2.7/python/lib/py4j-0.10.6-src.zip")
 
 
-
 from nltk import word_tokenize
 from pyspark import SparkContext
 from pyspark import SparkConf
@@ -87,7 +86,7 @@ conf = SparkConf()
 sc = SparkContext(conf=conf)
 
 #documentos = sc.textFile("hdfs://node1/sparkhomework/noticias100.csv")
-documentos = sc.textFile("noticiasy.txt")
+documentos = sc.textFile("noticias1.csv")
 
 rddIdxDoc  = documentos.zipWithIndex()
 
@@ -132,9 +131,9 @@ rrdMatrizTerminoDoc = rddDocsTokenized.map(lambda (documento,idx): (crearVector(
 
 #laConsulta = list(rddVectorConslta.collect())
 
-#lsConsulta = ["hola", "mundo", "spark", "suecia","cerca","amar"]
-lsConsulta = ["injusto", "arquitecto", "esperanza"]
-
+lsConsulta = ["hola", "mundo", "spark","cerca"]
+#lsConsulta = ["injusto", "arquitecto", "esperanza"]
+print(".")
 print("######## BUSCANDO .....")
 print(lsConsulta)
 
@@ -153,7 +152,7 @@ rddDistancias = rrdMatrizTerminoDoc.map(lambda (vectorTD, idx): (cosine_similari
 
 #print(rddDistancias.collect())
 
-top = rddDistancias.takeOrdered(3,key = lambda x: -x[0])
+top = rddDistancias.takeOrdered(10,key = lambda x: -x[0])
 
 listaTopNoticias = list()
 for distancia, noticia in top:

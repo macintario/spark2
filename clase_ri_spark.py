@@ -1,6 +1,7 @@
 import os
 import sys
 
+os.environ['JAVA_HOME'] = "/usr/java/jdk1.8.0_191-amd64"
 os.environ['SPARK_HOME'] = "/git/spark-2.3.2-bin-hadoop2.7"
 
 sys.path.append("/git/spark-2.3.2-bin-hadoop2.7/python")
@@ -86,11 +87,15 @@ conf = SparkConf()
 sc = SparkContext(conf=conf)
 
 #documentos = sc.textFile("hdfs://node1/sparkhomework/noticias100.csv")
-documentos = sc.textFile("noticias100.csv")
+documentos = sc.textFile("noticiasy.txt")
 
-rrdMinusculas = documentos.map(lambda documento: documento.lower())
+rddIdxDoc  = documentos.zipWithIndex()
 
-rddDocsTokenized = rrdMinusculas.map(word_tokenize)
+#rrdMinusculas = documentos.map(lambda documento: documento.lower())
+rrdMinusculas = rddIdxDoc.map(lambda (documento,idx) : (documento.lower(),idx))
+
+
+rddDocsTokenized = rrdMinusculas.map(lambda (documento,idx):(word_tokenize(documento),idx))
 
 ##### Quitar Stop Words ######
 
@@ -103,11 +108,11 @@ listaStopWords = rrdStopWordsMinusculas.collect()
 
 ##### Quitar Stop Words ###########################
 
-rddWordsInLista = rddDocsTokenized.flatMap(lambda word: word)
-
-rddDocumentosSinSW = rddWordsInLista.filter(lambda word: word not in listaStopWords)
+rddWordsInLista = rddDocsTokenized.flatMap(lambda (word,idx): word)
 
 ##### Quitar Stop Words ###########################
+rddDocumentosSinSW = rddWordsInLista.filter(lambda word: word not in listaStopWords)
+
 #lematizador(lema_d,palabra)
 lema_d = CargarDiccionarioLemas()
 rddWordsLematized = rddDocumentosSinSW.map(lambda word:lematizador(lema_d,word))
@@ -117,7 +122,8 @@ terminos = list(diccionarioDeTerminos.collect())
 
 
 
-rrdMatrizTerminoDoc = rddDocsTokenized.map(lambda documento: crearVector(documento,terminos))
+rrdMatrizTerminoDoc = rddDocsTokenized.map(lambda (documento,idx): (crearVector(documento,terminos), idx))
+#x = rrdMatrizTerminoDoc.take(3)
 
 #rddConsulta = sc.parallelize(["suecia europa mundo spark"])
 
@@ -127,7 +133,8 @@ rrdMatrizTerminoDoc = rddDocsTokenized.map(lambda documento: crearVector(documen
 
 #laConsulta = list(rddVectorConslta.collect())
 
-lsConsulta = ["suecia", "mundo", "basura", "horas"]
+#lsConsulta = ["hola", "mundo", "spark", "suecia","cerca","amar"]
+lsConsulta = ["bueno", "extraer", "siempre", "trabajo","faz","vida"]
 
 
 #print(terminos)
@@ -135,13 +142,19 @@ rddConsulta = diccionarioDeTerminos.map(lambda w: crearVectorConsultaFlatmap(w,l
 
 lsvConsulta = rddConsulta.collect()
 
-rddDistancias = rrdMatrizTerminoDoc.map(lambda vectorTD: (cosine_similarity(vectorTD,lsvConsulta),vectorTD))
+rddDistancias = rrdMatrizTerminoDoc.map(lambda (vectorTD, idx): (cosine_similarity(vectorTD,lsvConsulta),idx))
 
-top = rddDistancias.takeOrdered(5,key = lambda x: -x[0])
+top = rddDistancias.takeOrdered(3,key = lambda x: -x[0])
 
-for i in top:
+listaNoticias = list()
+for distancia,noticia in top:
+    listaNoticias.append(noticia)
 
-    print (i)
+rddTextoNoticias = rddIdxDoc.filter(lambda (txtNoticia,idx): idx in listaNoticias )
+textoNoticiasTop = rddTextoNoticias.collect()
+
+for i in textoNoticiasTop:
+    print (i[0])
 
 print("############################")
 

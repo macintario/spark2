@@ -1,10 +1,14 @@
 import os
 import sys
+import findspark as fs
+os.environ["JAVA_HOME"] = "/usr/java/jdk1.8.0_191-amd64"
+os.environ["SPARK_HOME"] = "/git/sprk"
+os.environ["PYTHONPATH"] = "%SPARK_HOME%\python;%SPARK_HOME%\python\lib\py4j-0.10.7-src.zip:%PYTHONPATH%"
+PYSPARK_PYTHON
+sys.path.append("/git/sprk/python")
+sys.path.append("/git/sprk/python/lib/py4j-0.10.7-src.zip")
+sys.path.append("/git/sprk/python/lib")
 
-os.environ['SPARK_HOME'] = "/home/aulae1-b6/spark"
-
-sys.path.append("/home/aulae1-b6/spark/python")
-sys.path.append("/home/aulae1-b6/spark/python/lib/py4j-0.10.6-src.zip")
 
 try:
     from pyspark import SparkContext

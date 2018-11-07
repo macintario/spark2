@@ -1,17 +1,17 @@
 import os
 import sys
 
+os.environ['JAVA_HOME'] = "/usr/java/jdk1.8.0_191-amd64"
 os.environ['SPARK_HOME'] = "/git/spark-2.3.2-bin-hadoop2.7"
 
 sys.path.append("/git/spark-2.3.2-bin-hadoop2.7/python")
-sys.path.append("/git/spark-2.3.2-bin-hadoop2.7/python/lib/py4j-0.10.6-src.zip")
+sys.path.append("/git/spark-2.3.2-bin-hadoop2.7/python/lib/py4j-0.10.7-src.zip")
 
 
-
-from nltk import word_tokenize
 from pyspark import SparkContext
 from pyspark import SparkConf
-import math as math
+from nltk import word_tokenize, ngrams
+
 
 
 def CargarDiccionarioLemas():
@@ -56,36 +56,15 @@ def crearVectorConsulta(consulta,diccionario):
         for palabradocs in consulta.split():
             if lematizador(lema_d,palabradocs) == palabra:
                 contador = contador + 1
-            vector.append(contador)
+                vector.append(contador)
 
     return vector
 
-def cosine_similarity(v1, v2):
-    "compute cosine similarity of v1 to v2: (v1 dot v2)/{||v1||*||v2||)"
-    sumxx, sumxy, sumyy = 0., 0., 0.
-    for i in range(len(v2)):
-        x = v1[i] + 0.
-        y = v2[i] + 0.
-        sumxx += x * x
-        sumyy += y * y
-        sumxy += x * y
-    prod = sumxx * sumyy
-    if prod >0:
-        return sumxy / math.sqrt(prod)
-    else:
-        return 0
-
-def crearVectorConsultaFlatmap(w,lsConsulta):
-    if w in lsConsulta:
-        return 1
-    else:
-        return 0
 
 
 conf = SparkConf()
 sc = SparkContext(conf=conf)
 
-#documentos = sc.textFile("hdfs://node1/sparkhomework/noticias100.csv")
 documentos = sc.textFile("noticias100.csv")
 
 rrdMinusculas = documentos.map(lambda documento: documento.lower())
@@ -94,7 +73,6 @@ rddDocsTokenized = rrdMinusculas.map(word_tokenize)
 
 ##### Quitar Stop Words ######
 
-#stopWords = sc.textFile("hdfs://node1/sparkhomework/stopwords.txt")
 stopWords = sc.textFile("stopwords.txt")
 
 rrdStopWordsMinusculas = stopWords.map(lambda stopWord: stopWord.lower())
@@ -119,31 +97,13 @@ terminos = list(diccionarioDeTerminos.collect())
 
 rrdMatrizTerminoDoc = rddDocsTokenized.map(lambda documento: crearVector(documento,terminos))
 
-#rddConsulta = sc.parallelize(["suecia europa mundo spark"])
+rddConsulta = sc.parallelize(["hola mundo de spark"])
+
+rddVectorConslta = rddConsulta.map(lambda consulta: crearVectorConsulta(consulta,terminos))
 
 
-#rddVectorConslta = rddConsulta.map(lambda consulta: crearVectorConsulta(consulta,terminos))
-
-
-#laConsulta = list(rddVectorConslta.collect())
-
-lsConsulta = ["suecia", "mundo", "basura", "horas"]
-
-
-#print(terminos)
-rddConsulta = diccionarioDeTerminos.map(lambda w: crearVectorConsultaFlatmap(w,lsConsulta) )
-
-lsvConsulta = rddConsulta.collect()
-
-rddDistancias = rrdMatrizTerminoDoc.map(lambda vectorTD: (cosine_similarity(vectorTD,lsvConsulta),vectorTD))
-
-top = rddDistancias.takeOrdered(5,key = lambda x: -x[0])
-
-for i in top:
-
+for i in rrdMatrizTerminoDoc.collect():
     print (i)
 
 print("############################")
-
-#takeOrdered
-#mapValue
+print(rddVectorConslta.collect())
